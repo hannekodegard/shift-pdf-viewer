@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script
+      type="text/javascript"
+      src="https://code.jquery.com/jquery-1.7.1.min.js"
+    ></script>
+    <script
+      type="text/javascript"
+      src="https://cdn.jsdelivr.net/gh/blasten/turn.js@master/turn.js"
+    ></script>
+
+    <style type="text/css">
+      body {
+        background: #161616;
+        min-width: 1152px;
+        height: 100vh;
+        min-height: 752px;
+        overflow: hidden;
+      }
+      .container {
+        height: 80vh;
+        width: 100vw;
+        display: flex;
+        justify-content: center;
+        overflow: hidden;
+      }
+      #newsletter {
+        width: 1152px;
+        height: 752px;
+        margin: auto;
+      }
+      #newsletter:empty {
+        display: none;
+      }
+      .loader,
+      .loader:before,
+      .loader:after {
+        border-radius: 50%;
+      }
+      .loader {
+        color: #ffffff;
+        font-size: 11px;
+        text-indent: -99999em;
+        margin: calc(50vh - 5em) auto 55px;
+        position: relative;
+        width: 10em;
+        height: 10em;
+        box-shadow: inset 0 0 0 1em;
+        -webkit-transform: translateZ(0);
+        -ms-transform: translateZ(0);
+        transform: translateZ(0);
+      }
+      .loader:before,
+      .loader:after {
+        position: absolute;
+        content: '';
+      }
+      .loader:before {
+        width: 5.2em;
+        height: 10.2em;
+        background: #161616;
+        border-radius: 10.2em 0 0 10.2em;
+        top: -0.1em;
+        left: -0.1em;
+        -webkit-transform-origin: 5.1em 5.1em;
+        transform-origin: 5.1em 5.1em;
+        -webkit-animation: load2 2s infinite ease 1.5s;
+        animation: load2 2s infinite ease 1.5s;
+      }
+      .loader:after {
+        width: 5.2em;
+        height: 10.2em;
+        background: #161616;
+        border-radius: 0 10.2em 10.2em 0;
+        top: -0.1em;
+        left: 4.9em;
+        -webkit-transform-origin: 0.1em 5.1em;
+        transform-origin: 0.1em 5.1em;
+        -webkit-animation: load2 2s infinite ease;
+        animation: load2 2s infinite ease;
+      }
+      div.flip-control {
+        display: flex;
+        flex-direction: row;
+        max-width: 1200px;
+        justify-content: center;
+        margin: auto;
+        text-align: center;
+        margin-top: 50px;
+        margin-bottom: 50px;
+      }
+
+      div.flip-control a {
+        display: block;
+        width: 60px;
+        background-color: #3189c9;
+        padding: 0.25rem 0.25rem;
+        color: #fff;
+        border: #111;
+        border-radius: 3px;
+        text-decoration: none;
+        line-height: 1rem;
+        font-size: 15px;
+        font-weight: 600;
+        margin: 0px 100px;
+      }
+
+      @-webkit-keyframes load2 {
+        0% {
+          -webkit-transform: rotate(0deg);
+          transform: rotate(0deg);
+        }
+        100% {
+          -webkit-transform: rotate(360deg);
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes load2 {
+        0% {
+          -webkit-transform: rotate(0deg);
+          transform: rotate(0deg);
+        }
+        100% {
+          -webkit-transform: rotate(360deg);
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+    <script src="https://mozilla.github.io/pdf.js/build/pdf.js"></script>
+  </head>
+  <body>
+    <div class="flip-control">
+    <a href="#" id="prev"> Previous </a>
+    <a href="#" id="next"> Next </a>
+  </div>
+    <div class="container">
+      <div class="loader">Loading...</div>
+      <div id="newsletter"></div>
+    </div>
+
+    <script type="text/javascript">
+      const url = (
+        (window.location.search.split("?")[1] || "").split("pdf=")[1] || ""
+      ).split("&")[0];
+      const pdfjsLib = window["pdfjs-dist/build/pdf"];
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://mozilla.github.io/pdf.js/build/pdf.worker.js";
+
+      let pdfDoc = null,
+        pageNum = 1,
+        pageRendering = false,
+        pageNumPending = null,
+        scale = 2;
+
+      function renderPage(num, canvas) {
+        pageRendering = true;
+        pdfDoc.getPage(num).then(function(page) {
+          const viewport = page.getViewport({ scale: scale });
+          context = canvas.getContext("2d");
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+
+          const renderTask = page.render({
+            canvasContext: context,
+            viewport: viewport
+          });
+        });
+      }
+
+
+      const canvases = [[null, true]]
+      let loadedPage = 3;
+
+      pdfjsLib.getDocument(url).promise.then(function(pdfDoc_) {
+        pdfDoc = pdfDoc_;
+
+        document.querySelector('.loader').style.display = 'none'
+
+        for (let i = 1; i <= pdfDoc.numPages; i++) {
+          const c = document.createElement("canvas");
+          canvases.push([c, i <= loadedPage]);
+          document.querySelector("#newsletter").appendChild(c);
+          if (i <= loadedPage) renderPage(i, c);
+        }
+
+        $(window).ready(function() {
+          $("#newsletter").turn({
+            display: "double",
+            acceleration: true,
+            gradients: !$.isTouch,
+            elevation: 50,
+            when: {
+              turned: function(e, page) {
+                if (page > loadedPage - 2) {
+                  if (page - 1 < canvases.length && !canvases[page - 1][1]) {
+                    renderPage(page - 1, canvases[page - 1][0])
+                    canvases[page - 1][1] = true
+                  }
+                  if (page < canvases.length && !canvases[page][1]) {
+                    renderPage(page, canvases[page][0])
+                    canvases[page][1] = true
+                  }
+                  if (page + 1 < canvases.length && !canvases[page + 1][1]) {
+                    renderPage(page + 1, canvases[page + 1][0])
+                    canvases[page + 1][1] = true
+                  }
+                  if (page + 2 < canvases.length && !canvases[page + 2][1]) {
+                    renderPage(page + 2, canvases[page + 2][0])
+                    canvases[page + 2][1] = true
+                  }
+                  if (page + 3 < canvases.length && !canvases[page + 3][1]) {
+                    renderPage(page + 3, canvases[page + 3][0])
+                    canvases[page + 3][1] = true
+                  }
+                  loadedPage = page
+                }
+              }
+            }
+          });
+        });
+
+        $(window).bind("keydown", function(e) {
+          if (e.keyCode == 37) $("#newsletter").turn("previous");
+          else if (e.keyCode == 39) $("#newsletter").turn("next");
+        });
+
+        $("#prev").click(function(e) {
+          e.preventDefault();
+          $("#newsletter").turn("previous");
+        });
+
+        $("#next").click(function(e) {
+          e.preventDefault();
+          $("#newsletter").turn("next");
+        });
+      });
+      var oTurn = $("#flipbook").turn({
+        width: 400,
+        height: 300,
+        autoCenter: true,
+        next: true
+      });
+    </script>
+  </body>
+</html>
+
